@@ -1,0 +1,23 @@
+# ============================================================
+# A Longhorn StorageClass with numberOfReplicas=1 for Kafka.
+#
+# Kafka replicates data across brokers itself (replication.factor=3),
+# so Longhorn making additional copies is wasteful. Using replica=1
+# means 24Gi of Kafka volumes uses only 24Gi of physical Longhorn disk
+# (instead of 72Gi with the default 3-replica StorageClass).
+#
+# Apply this BEFORE the node pool so the class exists when volumes provision.
+# ============================================================
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-kafka
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
