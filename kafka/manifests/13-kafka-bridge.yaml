@@ -15,10 +15,16 @@ spec:
   bootstrapServers: events-kafka-kafka-bootstrap:9092
   http:
     port: 8080
-    # CORS — allow browser-based clients (the dashboard, n8n web UI, etc.)
+    # CORS — Strimzi treats each allowedOrigin as a REGEX, not a literal.
+    # A bare "*" is invalid regex (dangling meta character) and crashes the
+    # bridge on startup. Use ".*" to match any origin.
+    #
+    # NOTE: Since Kong sits in front and handles access control, CORS here is
+    # mostly moot (browsers talk to Kong, not the Bridge directly). You could
+    # even remove the cors block entirely. Keeping ".*" is harmless.
     cors:
       allowedOrigins:
-        - "*"
+        - ".*"
       allowedMethods:
         - GET
         - POST
