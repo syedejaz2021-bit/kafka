@@ -22,7 +22,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: producer
-          image: quay.io/strimzi/kafka:latest-kafka-3.9.0
+          image: quay.io/strimzi/kafka:latest-kafka-4.1.1
           command:
             - /bin/sh
             - -c
