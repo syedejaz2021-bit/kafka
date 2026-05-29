@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-kafka-tables
+  namespace: trino-stack
+data:
+  log-events.json: |
+    {
+      "tableName": "log-events",
+      "schemaName": "default",
+      "topicName": "log-events",
+      "message": {
+        "dataFormat": "json",
+        "fields": [
+          { "name": "event_id",    "mapping": "event_id",    "type": "BIGINT" },
+          { "name": "timestamp",   "mapping": "timestamp",   "type": "VARCHAR" },
+          { "name": "service_id",  "mapping": "service_id",  "type": "BIGINT" },
+          { "name": "user_id",     "mapping": "user_id",     "type": "BIGINT" },
+          { "name": "level",       "mapping": "level",       "type": "VARCHAR" },
+          { "name": "http_method", "mapping": "http_method", "type": "VARCHAR" },
+          { "name": "http_path",   "mapping": "http_path",   "type": "VARCHAR" },
+          { "name": "http_status", "mapping": "http_status", "type": "INTEGER" },
+          { "name": "latency_ms",  "mapping": "latency_ms",  "type": "INTEGER" },
+          { "name": "trace_id",    "mapping": "trace_id",    "type": "VARCHAR" },
+          { "name": "message",     "mapping": "message",     "type": "VARCHAR" }
+        ]
+      }
+    }
+  deployments.json: |
+    {
+      "tableName": "deployments",
+      "schemaName": "default",
+      "topicName": "deployments",
+      "message": {
+        "dataFormat": "json",
+        "fields": [
+          { "name": "deployment_id", "mapping": "deployment_id", "type": "BIGINT" },
+          { "name": "service_id",    "mapping": "service_id",    "type": "BIGINT" },
+          { "name": "version",       "mapping": "version",       "type": "VARCHAR" },
+          { "name": "deployed_by",   "mapping": "deployed_by",   "type": "VARCHAR" },
+          { "name": "deployed_at",   "mapping": "deployed_at",   "type": "VARCHAR" },
+          { "name": "status",        "mapping": "status",        "type": "VARCHAR" }
+        ]
+      }
+    }
+  incidents.json: |
+    {
+      "tableName": "incidents",
+      "schemaName": "default",
+      "topicName": "incidents",
+      "message": {
+        "dataFormat": "json",
+        "fields": [
+          { "name": "incident_id", "mapping": "incident_id", "type": "BIGINT" },
+          { "name": "service_id",  "mapping": "service_id",  "type": "BIGINT" },
+          { "name": "severity",    "mapping": "severity",    "type": "VARCHAR" },
+          { "name": "status",      "mapping": "status",      "type": "VARCHAR" },
+          { "name": "summary",     "mapping": "summary",     "type": "VARCHAR" },
+          { "name": "started_at",  "mapping": "started_at",  "type": "VARCHAR" }
+        ]
+      }
+    }

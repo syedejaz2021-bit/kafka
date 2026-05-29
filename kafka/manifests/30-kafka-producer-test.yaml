@@ -1,0 +1,43 @@
+# ============================================================
+# Test producer Job — publishes a few sample log-events to Kafka
+# so you can verify the topic + Trino Kafka connector end to end.
+#
+# This is operational tooling, NOT part of the declarative stack.
+# Annotated so Argo treats it as a one-shot Sync hook (like the seed job).
+# ============================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-producer-test
+  namespace: kafka
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded,BeforeHookCreation
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: producer
+          image: quay.io/strimzi/kafka:latest-kafka-3.9.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              BOOT=events-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+              echo "Waiting for Kafka to be reachable..."
+              until kafka-broker-api-versions.sh --bootstrap-server $BOOT >/dev/null 2>&1; do
+                echo "  not ready yet..."; sleep 5
+              done
+              echo "Kafka is up. Producing sample events..."
+              cat <<'MSGS' | kafka-console-producer.sh --bootstrap-server $BOOT --topic log-events
+              {"event_id":1,"timestamp":"2026-05-29T08:00:00Z","service_id":5,"user_id":12,"level":"ERROR","http_method":"GET","http_path":"/api/v1/orders","http_status":500,"latency_ms":340,"trace_id":"trace-00001","message":"downstream timeout"}
+              {"event_id":2,"timestamp":"2026-05-29T08:01:00Z","service_id":8,"user_id":null,"level":"INFO","http_method":"POST","http_path":"/api/v1/login","http_status":200,"latency_ms":45,"trace_id":"trace-00002","message":"request completed"}
+              {"event_id":3,"timestamp":"2026-05-29T08:02:00Z","service_id":5,"user_id":7,"level":"CRITICAL","http_method":"PUT","http_path":"/api/v1/cart","http_status":503,"latency_ms":1200,"trace_id":"trace-00003","message":"service unavailable"}
+              MSGS
+              echo "Done. Produced 3 messages to log-events."
+              echo "Verify with: kafka-console-consumer.sh --bootstrap-server $BOOT --topic log-events --from-beginning --max-messages 3"
