@@ -1,13 +1,19 @@
 # ============================================================
-# KafkaNodePool resources (KRaft mode)
-# Two pools: dedicated controllers + dedicated brokers.
-# This is the production-grade split (vs combined dual-role).
+# Dual-role Kafka node pool, SMALL footprint for limited Longhorn space.
+#
+# - 3 dual-role nodes (controller + broker combined)
+# - 8Gi volumes each = 24Gi logical
+# - Longhorn replica count for these volumes set to 1 (via StorageClass below)
+#   so 24Gi logical = 24Gi physical (NOT 72Gi with default 3x replication)
+#
+# Kafka already replicates data across its 3 brokers (replication.factor=3),
+# so having Longhorn ALSO make 3 copies is redundant. Longhorn replica=1 is
+# the correct choice for Kafka — Kafka handles its own redundancy.
 # ============================================================
----
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
-  name: controller
+  name: dual-role
   namespace: kafka
   labels:
     strimzi.io/cluster: events-kafka
@@ -15,65 +21,26 @@ spec:
   replicas: 3
   roles:
     - controller
-  storage:
-    type: jbod
-    volumes:
-      - id: 0
-        type: persistent-claim
-        size: 10Gi
-        kraftMetadata: shared
-        deleteClaim: false
-        # class: longhorn   # uncomment + set if you want a specific StorageClass
-  resources:
-    requests:
-      cpu: "250m"
-      memory: 512Mi
-    limits:
-      cpu: "1"
-      memory: 1Gi
-  jvmOptions:
-    -Xms: 512m
-    -Xmx: 512m
-  template:
-    pod:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels:
-              strimzi.io/pool-name: controller
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaNodePool
-metadata:
-  name: broker
-  namespace: kafka
-  labels:
-    strimzi.io/cluster: events-kafka
-spec:
-  replicas: 3
-  roles:
     - broker
   storage:
     type: jbod
     volumes:
       - id: 0
         type: persistent-claim
-        size: 20Gi
+        size: 8Gi
         kraftMetadata: shared
         deleteClaim: false
-        # class: longhorn
+        class: longhorn-kafka     # custom StorageClass with replica=1 (defined below)
   resources:
     requests:
-      cpu: "500m"
-      memory: 1Gi
+      cpu: "300m"
+      memory: 768Mi
     limits:
-      cpu: "2"
-      memory: 2Gi
+      cpu: "1500m"
+      memory: 1536Mi
   jvmOptions:
-    -Xms: 1024m
-    -Xmx: 1024m
+    -Xms: 768m
+    -Xmx: 768m
   template:
     pod:
       topologySpreadConstraints:
@@ -82,4 +49,4 @@ spec:
           whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:
-              strimzi.io/pool-name: broker
+              strimzi.io/pool-name: dual-role
