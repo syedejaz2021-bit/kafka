@@ -1,0 +1,84 @@
+# ============================================================
+# Kong declarative config (DB-less) for fronting the Kafka Bridge
+# with basic-auth + rate limiting.
+#
+# This is a PARTIAL config showing the service/route/consumer/plugins
+# for the Kafka Bridge. Merge these entries into your existing kong.yaml
+# (don't replace your whole config — add these blocks to the relevant
+# top-level lists: services, consumers, basicauth_credentials).
+#
+# _format_version must match your existing kong.yaml (3.0 for Kong 3.x).
+# ============================================================
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: kafka-bridge
+    # The Bridge Service inside the cluster. Adjust if Kong is in a different
+    # namespace — use the FQDN form.
+    url: http://events-kafka-bridge-bridge-service.kafka.svc.cluster.local:8080
+    # Sensible timeouts — producing is fast, but don't hang forever
+    connect_timeout: 10000
+    write_timeout: 30000
+    read_timeout: 30000
+    routes:
+      - name: kafka-bridge-route
+        # Everything under /kafka/* is proxied to the Bridge.
+        # Kong strips the /kafka prefix before forwarding (strip_path: true),
+        # so /kafka/topics/log-events  ->  /topics/log-events on the Bridge.
+        paths:
+          - /kafka
+        strip_path: true
+        # Only allow the HTTP methods the Bridge actually uses
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+    plugins:
+      # ---- Authentication: basic-auth ----
+      - name: basic-auth
+        config:
+          # If true, Kong hides the credentials from the upstream (Bridge
+          # never sees the Authorization header). Recommended.
+          hide_credentials: true
+
+      # ---- Rate limiting: protect Kafka from floods ----
+      - name: rate-limiting
+        config:
+          # Tune these to your expected load. Generous-but-safe defaults:
+          minute: 600          # 600 requests/min = 10/sec sustained
+          hour: 20000
+          policy: local        # 'local' = per-Kong-node counter (fine for 1 node)
+                               # use 'redis' if you run multiple Kong replicas
+          limit_by: consumer   # rate limit per authenticated user, not globally
+          fault_tolerant: true # if the counter store hiccups, allow rather than block
+          hide_client_headers: false   # send X-RateLimit-* headers back to clients
+
+# ============================================================
+# Consumers — the identities allowed to call the Bridge.
+# Each gets a basic-auth credential (username + password).
+# ============================================================
+consumers:
+  - username: n8n-producer
+    custom_id: n8n-kafka-producer
+
+  - username: dashboard-consumer
+    custom_id: dashboard-kafka-consumer
+
+# ============================================================
+# basic-auth credentials, linked to the consumers above.
+# Kong stores the password hashed; you send it plaintext over HTTPS.
+#
+# CHANGE THESE PASSWORDS before applying. Generate strong ones:
+#   openssl rand -base64 24
+# ============================================================
+basicauth_credentials:
+  - consumer: n8n-producer
+    username: n8n-producer
+    password: zM0uwf4WbB6OU5TsLLclQVmDynX30Lgn
+
+  - consumer: dashboard-consumer
+    username: dashboard-consumer
+    password: zM0uwf4WbB6OU5TsLLclQVmDynX30Lgn
